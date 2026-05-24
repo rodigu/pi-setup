@@ -1,3 +1,3 @@
-from pi_base:latest
+from rodigu/pi-base:latest
 
-entrypoint pi -t read
+entrypoint pi -c -t read
