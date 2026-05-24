@@ -4,16 +4,20 @@ https://stackoverflow.com/questions/41935435/understanding-volume-instruction-in
 
 https://stackoverflow.com/questions/25267372/correct-way-to-detach-from-a-container-without-stopping-it
 
-ctrl+p ctrl+q 
+ctrl+p ctrl+q
 
 ```bash
-sudo docker rm pi \
-    && sudo docker build -t hiro/pi-llm .\
-    && sudo docker run \
-        --name=pi -ti \
-        -v $(pwd)/pi-volumes/src:/root/src \
-        -v $(pwd)/pi-volumes/sessions:/root/.pi/agent/sessions \
-        -v $(pwd)/pi-volumes/.pi:/root/src/.pi \
-        -v $(pwd)/pi-volumes/skills:/root/.pi/agent/skills \
-        hiro/pi-llm
+sudo docker build -t rodigu/pi-base docker/base \
+&& sudo docker build -t rodigu/pi-read docker/read \
+&& sudo docker build -t rodigu/pi-edit docker/edit
+```
+
+```bash
+sudo docker run \
+    --name=pi-edit -ti \
+    -v $(pwd)/src:/root/src \
+    -v $(pwd)/sessions:/root/.pi/agent/sessions \
+    -v /home/hiroto/dev/pi-setup/pi-volumes/.pi:/root/src/.pi \
+    -v /home/hiroto/dev/pi-setup/pi-volumes/skills:/root/.pi/agent/skills \
+    rodigu/pi-edit
 ```
