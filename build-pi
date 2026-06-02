@@ -1,0 +1,3 @@
+#!/usr/bin/env fish
+sudo docker build --no-cache -t pi-base /home/hiroto/dev/pi-setup/docker/base \
+    && sudo docker build --no-cache -t pi /home/hiroto/dev/pi-setup/docker/exec

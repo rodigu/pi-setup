@@ -1,0 +1,32 @@
+#!/usr/bin/env fish
+
+argparse 'f/force' -- $argv
+or exit 1
+
+if test (count $argv) -lt 1
+    echo "Usage: pi [-f] <id>"
+    echo "Example: pi 0       (creates/attaches to container 'pi0')"
+    echo "         pi -f 0    (removes 'pi0' if it exists, then creates it)"
+    exit 1
+end
+
+set container_name "pi$argv[1]"
+
+if set -q _flag_force
+    echo "Force-removing container $container_name..."
+    sudo docker rm -f $container_name
+end
+
+if sudo docker ps -a --format '{{.Names}}' | grep "^$container_name\$"
+    echo "Container exists $container_name, attaching..."
+    sudo docker start -ai $container_name
+else
+    echo "Container $container_name doesn't exist, creating it..."
+    sudo docker run \
+        --name=$container_name -ti \
+        -v $(pwd)/:/root/src \
+        -v $(pwd)/sessions:/root/.pi/agent/sessions \
+        -v /home/hiroto/dev/pi-setup/volumes/.pi/:/root/src/.pi \
+        -v /home/hiroto/dev/pi-setup/volumes/skills/:/root/.pi/agent/skills \
+        pi
+end
