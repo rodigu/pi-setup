@@ -26,6 +26,7 @@ interface QuerySuccess {
   data: Record<string, unknown>[];
   columns: string[];
   row_count: number;
+  original_row_count?: number;
   warnings?: string[];
 }
 
@@ -147,9 +148,11 @@ export default function (pi: ExtensionAPI) {
       "Use query_excel when the user wants to analyze or query Excel data.",
       "Provide `filepath` (full absolute path) and `query` (Polars SQL).",
       "Use query_excel in place of read or bash for Excel files — they are binary.",
-      "Query SELECT * FROM _AVAILABLE_SHEETS to discover available tables.",
-      "Use DESCRIBE table or SHOW COLUMNS FROM table to explore schema before querying.",
-      "query_excel returns a sample of 5 rows and at most 5 columns.",
+      "Query SELECT * FROM _SHEETS_META to discover available sheets, columns, and types.",
+      "Use SHOW TABLES to list available tables.",
+      "DESCRIBE and SHOW COLUMNS are not supported by Polars SQL.",
+      "Polars SQL is case-sensitive for table names. Use exact names from _SHEETS_META.",
+      "query_excel returns up to 10 rows and at most 5 columns.",
       "Use WHERE filters and aggregates (SUM, AVG, COUNT) to get exactly what you need.",
     ],
     parameters: QUERY_EXCEL_PARAMS,

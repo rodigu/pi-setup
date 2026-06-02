@@ -55,18 +55,46 @@ def build_table_map(dfs: dict[str, pl.DataFrame]) -> dict[str, pl.DataFrame]:
 
 
 def add_sheets_meta_table(table_map: dict[str, pl.DataFrame]) -> dict[str, pl.DataFrame]:
-    """Add a meta table listing available sheet names.
+    """Add a meta table listing available sheets, columns, and types.
+
+    Builds a normalized table with columns SheetsName, ColumnName,
+    and ColumnType, where each row represents a column in a sheet.
 
     Args:
         table_map: Mapping of table names to DataFrames (mutated in place).
 
     Returns:
-        The same table_map with the added _AVAILABLE_SHEETS entry.
+        The same table_map with the added _SHEETS_META entry.
     """
-    table_map["_AVAILABLE_SHEETS"] = pl.DataFrame({
-        "Sheets_Name": list(table_map.keys())
-    })
+    rows = []
+    for sheet_name, df in table_map.items():
+        for col, dtype in df.schema.items():
+            rows.append({"SheetsName": sheet_name, "ColumnName": col, "ColumnType": str(dtype)})
+    table_map["_SHEETS_META"] = pl.DataFrame(rows)
     return table_map
+
+
+def safe_to_dicts(df: pl.DataFrame) -> list[dict]:
+    """Convert DataFrame to dicts, casting non-serializable types to strings.
+
+    Proactively casts columns with non-JSON-serializable types (Date,
+    Datetime, Duration, etc.) to Utf8 before serialization.
+
+    Args:
+        df: Polars DataFrame to convert.
+
+    Returns:
+        List of row dictionaries with JSON-serializable values.
+    """
+    serializable_types = {
+        pl.Utf8, pl.Int8, pl.Int16, pl.Int32, pl.Int64,
+        pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
+        pl.Float32, pl.Float64, pl.Boolean,
+    }
+    for col, dtype in df.schema.items():
+        if dtype not in serializable_types:
+            df = df.with_columns(df[col].cast(pl.Utf8))
+    return df.to_dicts()
 
 
 def validate_path(filepath: str) -> tuple[bool, str]:
@@ -119,7 +147,7 @@ def main():
 
     Parses command-line arguments, validates the file, reads all sheets
     into Polars DataFrames, executes the SQL query, applies output
-    restrictions (max 5 rows, max 5 columns), and prints the result
+    restrictions (max 10 rows, max 5 columns), and prints the result
     as JSON to stdout.
 
     Exit Codes:
@@ -175,6 +203,7 @@ def main():
 
     # Apply restrictions
     warnings = []
+    original_row_count = None
 
     # Limit columns to 5
     if result.shape[1] > 5:
@@ -182,18 +211,25 @@ def main():
         result = result.select(result.columns[:5])
         warnings.append(f"Dropped columns: {', '.join(dropped)}")
 
-    # Sample 5 rows
-    if result.shape[0] > 5:
-        original_rows = result.shape[0]
-        result = result.sample(5)
-        warnings.append(f"Sampled 5 of {original_rows} rows")
+    # Truncate to 10 rows
+    if result.shape[0] > 10:
+        original_row_count = result.shape[0]
+        result = result.head(10)
+        warnings.append(f"Truncated to 10 of {original_row_count} rows")
 
     # Convert to output
-    output = {
-        "data": result.to_dicts(),
-        "columns": result.columns,
-        "row_count": result.shape[0],
-    }
+    try:
+        output = {
+            "data": safe_to_dicts(result),
+            "columns": result.columns,
+            "row_count": result.shape[0],
+        }
+    except Exception as e:
+        print(json.dumps({"error": f"Serialization error: {str(e)[:200]}"}))
+        sys.exit(1)
+
+    if original_row_count is not None:
+        output["original_row_count"] = original_row_count
 
     if warnings:
         output["warnings"] = warnings
