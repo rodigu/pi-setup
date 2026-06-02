@@ -1,14 +1,14 @@
-from node:latest
-
-run groupadd -r pi-user && useradd -r -g pi-user -m pi-user
-
+from nikolaik/python-nodejs:latest
 workdir /usr/local/app
+
 run curl -fsSL https://pi.dev/install.sh | sh
 run pi install npm:@lesetong/pi-mimo
 
-copy --chown=pi-user:pi-user ./auth.json /home/pi-user/.pi/agent/auth.json
+run pip install polars fastexcel
 
-workdir /home/pi-user/src
+workdir /root
+copy ./auth.json ./.pi/agent/auth.json
 
-user pi-user
+workdir /root/src
+
 entrypoint bash
